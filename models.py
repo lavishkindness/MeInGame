@@ -13,8 +13,9 @@ import torch.optim as optim
 from pytorch3d.io import load_objs_as_meshes
 from pytorch3d.renderer import (DirectionalLights, MeshRasterizer, MeshRenderer,
                                 OpenGLPerspectiveCameras, RasterizationSettings,
-                                TexturedSoftPhongShader, look_at_view_transform)
-from pytorch3d.structures import Meshes, Textures
+                                SoftPhongShader, look_at_view_transform)
+from pytorch3d.renderer.mesh.textures import TexturesUV
+from pytorch3d.structures import Meshes
 from pytorch3d.transforms import Transform3d
 from skimage import io
 
@@ -184,7 +185,7 @@ class InpaintingModel(nn.Module):
     self.rasterizer = MeshRasterizer(cameras=cameras,
                                      raster_settings=raster_settings)
     lights = DirectionalLights(device=self.device)
-    shader = TexturedSoftPhongShader(device=self.device, cameras=cameras,
+    shader = SoftPhongShader(device=self.device, cameras=cameras,
                                      lights=lights)
     self.renderer = MeshRenderer(rasterizer=self.rasterizer, shader=shader)
 
@@ -209,19 +210,19 @@ class InpaintingModel(nn.Module):
     renders = renders_alpha[:, :3]
     renders_mask = renders_alpha[:, 3:]
 
-    gen_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    im_dis_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    uv_dis_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    im_gen_gan_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    uv_gen_gan_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_uv_std_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_uv_sym_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_rd_l1_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_rd_style_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_uv_style_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
-    gen_uv_content_loss = torch.tensor(0, dtype=torch.float32,
+    gen_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    im_dis_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    uv_dis_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    im_gen_gan_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    uv_gen_gan_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_uv_std_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_uv_sym_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_rd_l1_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_rd_style_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_uv_style_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+    gen_uv_content_loss = torch.zeros((), dtype=torch.float32,
                                        device=self.device)
-    gen_uv_l1_loss = torch.tensor(0, dtype=torch.float32, device=self.device)
+    gen_uv_l1_loss = torch.zeros((), dtype=torch.float32, device=self.device)
 
     double_image = torch.cat([images, torch.flip(images, (3,))], dim=0)
     double_skins = torch.cat([im_skins, torch.flip(im_skins, (3,))], dim=0)
@@ -458,7 +459,7 @@ class InpaintingModel(nn.Module):
 
     fliped_uv = torch.flip(gen_uvmaps / 2 + 0.5,
                            (2, 3)).repeat(2, 1, 1, 1).permute(0, 2, 3, 1)
-    texture = Textures(
+    texture = TexturesUV(
         maps=fliped_uv,
         faces_uvs=self.meshes[face_model].textures.faces_uvs_padded(),
         verts_uvs=self.meshes[face_model].textures.verts_uvs_padded())

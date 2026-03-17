@@ -264,7 +264,7 @@ class UVInpainting():
 
     self.eye_lm_idx = np.loadtxt('data/mesh/eye_lm_idx.txt', dtype=np.int32)
 
-    self.cropper = ImageCropper(self.config.im_size, use_dlib=False)
+    self.cropper = ImageCropper(self.config.im_size, use_dlib=False, device=self.device)
     self.reconstructor = Deep3DFace(self.sess, self.graph)
 
     R, T = look_at_view_transform(10, 0, 0)

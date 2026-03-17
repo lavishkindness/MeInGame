@@ -4,13 +4,13 @@ import cv2
 import numpy as np
 import scipy.io as sio
 
-from lib import face_align
+import face_alignment
 
 
 class ImageCropper():
 
   # def __init__(self, predictor_path, img_size):
-  def __init__(self, img_size, use_dlib=False):
+  def __init__(self, img_size, use_dlib=False, device='cpu'):
     self.use_dlib = use_dlib
     if use_dlib:
       import dlib
@@ -19,8 +19,8 @@ class ImageCropper():
       self.detector = dlib.get_frontal_face_detector()
       self.predictor = dlib.shape_predictor(predictor_path)
     else:
-      self.predictor = face_align.FaceAlignment(face_align.LandmarksType._2D,
-                                                device='cuda')
+      self.predictor = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D,
+                                                device=str(device))
     self.load_lm3d()
     self.img_size = img_size
 
@@ -107,7 +107,9 @@ class ImageCropper():
       # landmarks[:, 1] += roi_box[1]
       im_size = np.array(image.shape[:2])
       im_256 = cv2.resize(image, (256, 256), cv2.INTER_AREA)
-      landmarks, faces = self.predictor.get_landmarks(im_256)
+      landmarks, _, faces = self.predictor.get_landmarks(im_256, return_bboxes=True)
+      if landmarks is None:
+        raise Exception("No face detected by face_alignment")
       landmarks = landmarks[0]
       faces = faces[0]
       landmarks = np.round(landmarks * (im_size / 256).astype(np.float32))

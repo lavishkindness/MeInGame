@@ -228,7 +228,7 @@ def rgb2hsv(im, eps=1e-8):
   # import imageio
   # imageio.imsave('tmp/blur_uv.png', img.cpu()[0].permute(1,2,0).detach().numpy())
 
-  hue = torch.Tensor(im.shape[0], im.shape[2], im.shape[3]).to(im.device)
+  hue = torch.empty((im.shape[0], im.shape[2], im.shape[3]), device=im.device)
   hue[img[:, 2] == img.max(1)[0]] = 4.0 + (
       (img[:, 0] - img[:, 1]) /
       (img.max(1)[0] - img.min(1)[0] + eps))[img[:, 2] == img.max(1)[0]]

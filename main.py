@@ -89,13 +89,18 @@ def main():
   logger = utils.init_logger('x')
 
   # init device
-  setattr(config, 'use_cuda', not config.cpu and torch.cuda.is_available())
-
-  if config.use_cuda:
+  if config.cpu:
+    device = 'cpu'
+  elif torch.cuda.is_available():
     device = 'cuda'
     torch.backends.cudnn.benchmark = True  # cudnn auto-tuner
+  elif torch.backends.mps.is_available():
+    device = 'mps'
   else:
     device = 'cpu'
+  
+  setattr(config, 'use_cuda', device == 'cuda')
+  setattr(config, 'device', device)
 
   # set number of cv2 running threads to 1 (prevents deadlocks with pytorch dataloader)
   if config.mode == 'train':
@@ -131,16 +136,17 @@ def main():
     logger.info(config)
     print('Start testing...\n')
 
-    gpu_config = tf.ConfigProto(allow_soft_placement=True,
+    gpu_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
                                 log_device_placement=False)
     # pylint: disable=no-member
     gpu_config.gpu_options.allow_growth = True
-    if 'Windows' in platform.platform() or not config.use_cuda:
+    if 'Windows' in platform.platform() or device == 'cpu':
       tf_device = '/cpu'
     else:
-      tf_device = '/gpu'
+      # Assume some GPU is available, tf.compat.v1 handles it 
+      tf_device = '/gpu:0'
 
-    with tf.Graph().as_default() as graph, tf.device(tf_device), tf.Session(
+    with tf.compat.v1.Graph().as_default() as graph, tf.compat.v1.device(tf_device), tf.compat.v1.Session(
         config=gpu_config) as sess:
 
       model = UVInpainting(config, device, sess, graph)
